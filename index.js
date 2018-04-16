@@ -109,10 +109,24 @@ module.exports = function(client, logger, _opConfig) {
         return client.nodes.stats()
     }
 
+    function compareNames(_name, key){
+        const name = _name.replace(/\*/g, '.*');
+        const fullNameRegex = RegExp(name, 'g');
+        if (key.match(fullNameRegex) !== null) return true;
+        // a name may come in as es_d*:2017-domains* so we need to parse and compare 2017-domains*
+        // against the index names listed
+        if (name.includes(':')) {
+            const clusterName = name.split(':')[1];
+            if (key.match(RegExp(clusterName), 'g') !== null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function verifyIndex(indexObj, name) {
         var wasFound = false;
         var results = [];
-        var regex = RegExp(name);
 
         //exact match of index
         if (indexObj[name]) {
@@ -123,7 +137,7 @@ module.exports = function(client, logger, _opConfig) {
         else {
             //check to see if regex picks up indices
             _.forOwn(indexObj, function(value, key) {
-                if (key.match(regex) !== null) {
+                if (compareNames(name, key)) {
                     wasFound = true;
                     let windowSize = value.settings.index.max_result_window ? value.settings.index.max_result_window : 10000;
                     results.push({name: key, windowSize: windowSize})
